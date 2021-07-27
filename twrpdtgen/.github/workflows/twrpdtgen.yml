@@ -1,0 +1,48 @@
+name: twrpdtgen
+
+on: [push]
+
+env:
+  RECOVERY: https://download1522.mediafire.com/pduehq22sutg/wmra2o4nkjjojlk/boot.img
+  TZ: XenonTheInertG
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+       - name: Checkout
+         uses: actions/checkout@master
+
+       - name: Set up python
+         uses: actions/setup-python@v2
+         with:
+           python-version: '3.8.2'
+
+       - name: Install the tools
+         run: |
+              git clone https://github.com/SebaUbuntu/TWRP-device-tree-generator
+              cd TWRP-device-tree-generator
+              chmod 0777 *
+              sudo apt install cpio
+              sudo -E apt-get -qq install git openjdk-8-jdk wget
+              pip3 install .
+              pip3 install twrpdtgen
+              
+       
+       - name: Download recovery and extract tree
+         run: |
+              mkdir work
+              cd work
+              wget $RECOVERY
+              python3 -m twrpdtgen -o OUTPUT --no-git
+       
+       - name: Upload tree
+         run: |
+              cd work
+              zip -r tree.zip *
+              touch link.txt
+              ./transfer wet tree.zip | grep Download >> link.txt
+       
+       - name: Execute Shell Script
+         run: |
+               cat work/input/link.txt
