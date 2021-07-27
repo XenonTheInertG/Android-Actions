@@ -1,0 +1,113 @@
+# This is a basic workflow to help you get started with Actions
+
+name: SGSI_Build
+
+on: [push]
+    
+env:              
+  ROM_URL: 'https://mirrorgang.techharz.workers.dev/MIUI-CAF_12.6_Beta_Lavender_21.4.14-v10.zip'
+  ZIP_NAME: 'MIUI-CAF_12.6_Beta_Lavender_21.4.14-v10.zip'
+  OS_TYPE: 'Generic'
+  BUILD_TYPE: 'ab'
+  REPACK_NAME: 'lavender_SGSI.zip'
+  VERSION: '12'
+  upload _SourceForge: 'false'
+  upload_WeTransfer: 'true'
+  upload_action-gh-release: 'false'
+  SETUP: 'true'
+  
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+       - name: Checkout
+         uses: actions/checkout@main
+       
+       - name: Clean Up
+         run: |       
+           docker rmi `docker images -q`
+           sudo rm -rf /usr/share/dotnet /etc/mysql /etc/php /etc/apt/sources.list.d
+           sudo -E apt-get -y purge azure-cli ghc* zulu* hhvm llvm* firefox google* dotnet* powershell openjdk* mysql* php*
+           sudo -E apt-get update
+           sudo -E apt-get -y autoremove --purge
+           sudo -E apt-get clean
+           df -h
+           
+       - name: Setting up the SPICES
+         run: |
+            sudo apt-get install -y git wget git zip unzip curl axel
+
+       - name: Cloning...
+         run: |
+             git clone https://github.com/xiaoxindada/SGSI-build-tool.git -b 12 $GITHUB_WORKSPACE/SGSI-build-tool
+           
+       - name: Download Firmware...
+         run: |
+            cd $GITHUB_WORKSPACE/SGSI-build-tool
+            mkdir ./tmp
+            axel -n $(nproc) -U "Mozilla/5.0" $ROM_URL -o "$GITHUB_WORKSPACE/SGSI-build-tool/tmp/$ZIP_NAME" || wget -U "Mozilla/5.0" $ROM_URL -O "$GITHUB_WORKSPACE/SGSI-build-tool/tmp/$ZIP_NAME"
+            echo "zip_file: $(ls "$GITHUB_WORKSPACE/SGSI-build-tool/tmp/")"
+            
+       - name: Setup Tool Utils...
+         if: env.SETUP == 'true'
+         run: |
+            sudo sed -i 's/USE_MIRROR_FOR_PIP\=true/USE_MIRROR_FOR_PIP\=false/' $GITHUB_WORKSPACE/SGSI-build-tool/setup.sh
+            sudo bash $GITHUB_WORKSPACE/SGSI-build-tool/setup.sh
+            sudo apt-get -y --purge remove "adoptopenjdk-11-hotspot"
+            java -version
+            
+       - name: Building AB DEVICES SGSI...
+         if: env.BUILD_TYPE == 'AB' || env.BUILD_TYPE == 'ab'
+         run: |
+            sudo bash $GITHUB_WORKSPACE/SGSI-build-tool/make.sh --AB $OS_TYPE $ZIP_NAME --fix-bug
+
+       - name: Building A-only DEVICES SGSI...
+         if: env.BUILD_TYPE == 'a-only'
+         run: |
+            sudo bash $GITHUB_WORKSPACE/SGSI-build-tool/make.sh --a-only $OS_TYPE $ZIP_NAME --fix-bug     
+
+       - name: Repack output file ...
+         run: |            
+             cd $GITHUB_WORKSPACE/SGSI-build-tool
+             pwd
+             zip -r $REPACK_NAME ./SGSI/*
+             ls "$REPACK_NAME"
+
+       - name: Upload SGSI to SourceForge
+         run: |
+             cd $GITHUB_WORKSPACE/SGSI-build-tool
+             pwd
+             ls "$REPACK_NAME"
+             sftp ${{ secrets.SFUSER }}@frs.sourceforge.net
+             expect \"Password\"        
+             send \"${{ secrets.SFPASS }}\r\"
+             expect \"sftp> \"
+             send \"cd ${{ secrets.SFDIR }}\r\"
+             set timeout -1
+             send \"put $REPACK_NAME.zip\r\"
+             expect \"Uploading\"
+             expect \"100%\"
+             expect \"sftp>\"
+             send \"bye\r\"
+             interact"
+
+       - name: Upload SGSI to WeTransfer...
+         if: env.upload_WeTransfer == 'true' 
+         run: |
+           cd $GITHUB_WORKSPACE/SGSI-build-tool
+           pwd
+           ls "$REPACK_NAME"
+           curl -sL https://git.io/file-transfer | sh
+           ./transfer wet ./$REPACK_NAME
+
+       - name: Upload SGSI to action-gh-release...
+         if: env.upload_action-gh-release == 'true'
+         uses: softprops/action-gh-release@v1
+         with:
+           files: ${{ github.workspace }}/SGSI-build-tool/${{ env.REPACK_NAME }}
+           name: xiaoxinSGSI-${{ env.OS_TYPE }}-${{ env.BUILD_TYPE }}-Android${{ env.VERSION }}-unpack
+           tag_name: 12
+           #body: Use actions auto bulid
+         env:
+            GH_TOKEN: ${{ secrets.GH_TOKEN }}           
