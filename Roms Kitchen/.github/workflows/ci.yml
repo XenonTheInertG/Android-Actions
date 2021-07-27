@@ -1,0 +1,69 @@
+
+name: Roms Kitchen
+
+on:
+#  release:
+#    types: [published]
+#  push:
+#    branches:
+#      - master
+#    paths:
+#      - '.config'
+#  schedule:
+#    - cron: 0 8 * * 5
+  watch:
+    types: [started]
+
+env:
+  ROM_MANIFEST: https://github.com/Havoc-OS/android_manifest
+  ROM_MANIFEST_BRANCH: eleven
+  ROM_CODENAME: picasso
+  CODENAME: K305G
+  BRAND: Xiaomi
+  CHIPSET: SDM765
+  DT_LINK: https://github.com/zhuofan-16/rebase-device-xiaomi-picasso
+  DT_BRANCH: eleven
+  VT_LINK: https://github.com/zhuofan-16/vendor_xiaomi_picasso
+  VT_BRANCH: lineage-18.0
+  KERNEL_LINK: https://github.com/zhuofan-16/android_kernel_xiaomi_sm7250
+  KERNEL_BRANCH: lineage-17.1
+  TZ: Asia/Kolkata
+
+jobs:
+  build:
+    runs-on: ubuntu-16.04
+
+    steps:
+       - name: Checkout
+         uses: actions/checkout@master
+         
+       - name: Initializing environment
+         run: |
+            sudo -E apt-get -qq update
+            wget https://raw.githubusercontent.com/akhilnarang/scripts/master/setup/android_build_env.sh
+            bash android_build_env.sh
+            
+       - name: Sync ROM sourcecode
+         run: |
+             mkdir "$ROM_CODENAME$"
+             cd "$ROM_CODENAME$"
+             repo init -u $ROM_MANIFEST --depth=1 -b $ROM_MANIFEST_BRANCH 
+             repo sync -j4
+             
+       - name: Clone device tree, kernel tree and vendor tree
+         run: |
+             cd work
+             git clone $DT_LINK --depth=1 -b $DT_BRANCH device/"$BRAND"/"$CODENAME"
+             git clone $KERNEL_LINK --depth=1 -b $KERNEL_BRANCH kernel/"$BRAND"/"$CHIPSET"    
+             git clone $VT_LINK --depth=1 -b $VT_BRANCH vendor/"$BRAND"/"$CODENAME"
+             
+       - name: Build
+         run: |
+              cd work
+              source build/envsetup.sh && lunch "$ROM_CODENAME"_"$CODENAME"-userdebug && mka api-stubs-docs && mka hiddenapi-lists-docs && mka system-api-stubs-docs && mka test-api-stubs-docs && mka bacon -j4
+             
+       - name: Upload ROM
+         run: |
+              cd "$ROM_CODENAME$"/out/target/product/$CODENAME
+              curl -sL https://git.io/file-transfer | sh
+              ./transfer wet *$CODENAME*.zip    
