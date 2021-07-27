@@ -1,0 +1,42 @@
+name: Dumping
+
+on:
+  workflow_dispatch:
+    inputs:
+      rom_link:
+        description: 'rom link'
+        required: true
+
+env:
+  ROM_URL: ${{ github.event.inputs.rom_link }}
+jobs:
+  dump:
+    runs-on: ubuntu-20.04
+
+    steps:
+       - name: Checkout
+         uses: actions/checkout@master
+       
+       - name: Clone Dumper Source Code
+         run: git clone https://github.com/DroidDumps/phoenix_firmware_dumper dumper
+       
+       - name: Setting up Dumper requirements
+         run: |
+              sudo chmod -R 777 dumper
+              cd dumper
+              sudo pip3 install wheel setuptools
+              sudo bash setup.sh
+              touch .tg_token
+              echo "${{ secrets.BOT }}" >> ".tg_token"
+              touch .github_orgname
+              echo "AndroidDump" >> ".github_orgname"
+              touch .github_token
+              echo "${{ secrets.GHTOKEN }}" >> ".github_token"
+              touch .tg_chat
+              echo "@CarbonatedBlackLabs" >> ".tg_chat"
+              git config --global user.email "manofuranium@gmail.com"
+              git config --global user.name "ElytrA8"
+       - name: Download Stock Rom & Generate dump
+         run: |
+              cd dumper
+              sudo bash dumper.sh $ROM_URL
