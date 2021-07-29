@@ -1,9 +1,9 @@
 name: twrpdtgen
-
+author: XenonTheInertG
 on: [push]
 
 env:
-  RECOVERY: https://download1522.mediafire.com/pduehq22sutg/wmra2o4nkjjojlk/boot.img
+  RECOVERY: (put recovery/boot image dl link here)
   TZ: Asia
 jobs:
   build:
@@ -16,7 +16,7 @@ jobs:
        - name: Set up python
          uses: actions/setup-python@v2
          with:
-           python-version: '3.8.2'
+           python-version: '3.9.5'
 
        - name: Install the tools
          run: |
