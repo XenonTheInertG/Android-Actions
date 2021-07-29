@@ -4,7 +4,7 @@ on: [push]
 
 env:
   RECOVERY: https://download1522.mediafire.com/pduehq22sutg/wmra2o4nkjjojlk/boot.img
-  TZ: XenonTheInertG
+  TZ: Asia
 jobs:
   build:
     runs-on: ubuntu-latest
