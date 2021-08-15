@@ -1,0 +1,48 @@
+name: Dump
+ 
+on:
+  push:
+    paths-ignore:
+      - '*.md'
+    branches: [ main ]
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  ROM_URL: https://mirrors.lolinet.com/firmware/lenovo/Tab_M10_HD/TB-X505X/TB-X505X_USR_S001033_2003030144_Q00015_ROW.zip
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+       - name: Checkouts
+         uses: actions/checkout@v2
+
+       - name: Clone Dumpyara
+         run: |
+              git clone https://github.com/HyperNotAryanX97/phoenix_firmware_dumper
+
+       - name: Setup Dumpyara environment
+         working-directory: phoenix_firmware_dumper
+         run: |
+              sudo bash setup.sh
+              git config --global user.name "flashokiller"
+              git config --global user.email "flashokiller@gmail.com"
+
+       - name: Setup config envs
+         working-directory: phoenix_firmware_dumper
+         run: |
+              echo "${{ secrets.GIT_TOKEN }}" > .github_token
+              echo "${{ secrets.GITORGNAME }}" > .git_orgname
+              echo "${{ secrets.BOT_TOKEN }}" > .tg_token
+              echo "${{ secrets.CHAT_ID }}" > .tg_chat
+
+       - name: Running Dumpyara
+         working-directory: phoenix_firmware_dumper
+         run: |
+              ./dumper.sh  "$ROM_URL"
+
+#haha Meme tek
